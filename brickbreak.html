@@ -1,0 +1,186 @@
+<html>
+	<canvas id="gameCanvas" width="1280" height="720"></canvas>
+	<script>
+			
+		const PADDLE_HEIGHT = 10;
+		const PADDLE_WIDTH = 100;
+		const BALL_RADIUS = 10;
+		const NUM_OF_BRICKS = 11;
+		const BRICK_HEIGHT = 30;
+		const BRICK_WIDTH = 75;
+			
+		var canvas;
+		var canvasContext;
+		var paddleX = 590;
+		var ballX = 640;
+		var ballY = 690;
+		var ballSpeedX = 0;
+		var ballSpeedY = 0;
+		var lives = 3;
+		var bricks = [];
+		var brickCoordinates = [];
+		var drawBrick = [];
+		var gameOver = false;
+		var startingPos = true;
+		var bricksLeft = NUM_OF_BRICKS;
+		var brickX = (1280 - (NUM_OF_BRICKS * BRICK_WIDTH + (NUM_OF_BRICKS - 1) * 10)) / 2;
+		
+		function handleMouseClick(evt) {
+			if (gameOver) {
+				resetGame();
+			}
+			else if (startingPos) {
+				ballSpeedX = Math.random() * 12 - 6;
+				ballSpeedY = 5;
+				startingPos = false;
+			}
+		}
+		
+		function calculateMousePos(evt) {
+			var rect = canvas.getBoundingClientRect();
+			var root = document.documentElement;
+			var mouseX = evt.clientX - rect.left - root.scrollLeft;
+			var mouseY = evt.clientY - rect.top - root.scrollTop;
+			return {
+				x:mouseX,
+				y:mouseY
+			};
+		}
+		
+		window.onload = function() {
+			canvas = document.getElementById('gameCanvas');
+			canvasContext = canvas.getContext('2d');
+			var fps = 60;
+			initBricks();
+			setInterval(function() { moveEverything(); drawEverything(); }, 1000/fps);
+			canvas.addEventListener('mousedown', handleMouseClick);
+			canvas.addEventListener('mousemove',
+				function(evt) {
+					var mousePos = calculateMousePos(evt);
+					paddleX = mousePos.x - PADDLE_WIDTH/2;
+					if (startingPos)
+						ballX = paddleX + PADDLE_WIDTH/2;
+				});
+		}
+		
+		function moveEverything() {
+			if (!startingPos && !gameOver) {
+				ballX += ballSpeedX;
+				ballY += ballSpeedY;
+				
+				//Collision with paddle
+				if (ballSpeedY > 0 && ballY >= canvas.height - 10 - PADDLE_HEIGHT - BALL_RADIUS
+					&& ballX >= paddleX && ballX <= paddleX + PADDLE_WIDTH) {
+						ballSpeedY = -ballSpeedY;
+						var deltaX = ballX - (paddleX+PADDLE_WIDTH/2);
+						ballSpeedX = deltaX * 0.12;
+				}
+				
+				//Ball miss
+				else if (ballY > canvas.height - BALL_RADIUS) {
+					lives--;
+					ballReset();
+				}
+				
+				//collision with bricks
+				for (i = 0; i < NUM_OF_BRICKS; i++) {
+					if (drawBrick[i]) {
+						if (isTouching(i)) {
+							drawBrick[i] = false;
+							bricksLeft--;
+							if (ballY == brickCoordinates[i][1] - BALL_RADIUS || ballY == brickCoordinates[i][1] + BRICK_HEIGHT + BALL_RADIUS)
+								ballSpeedY = -ballSpeedY;
+							else
+								ballSpeedX = -ballSpeedX;
+							if (bricksLeft == 0)
+								gameOver = true;
+							break;
+						}
+					}
+				}
+				
+				if (ballSpeedY < 0 && ballY < BALL_RADIUS)
+					ballSpeedY = -ballSpeedY;
+				if (ballX > canvas.width-BALL_RADIUS | ballX < BALL_RADIUS)
+					ballSpeedX = -ballSpeedX;
+			}
+		}
+		
+		function drawEverything() {
+			//Game area
+			colorRect(0, 0, canvas.width, canvas.height, 'black');
+			
+			if (gameOver) {
+				canvasContext.font = "40px Verdana";
+				canvasContext.fillStyle = 'white';
+				if (bricksLeft == 0)
+					canvasContext.fillText("YOU WIN!", 545, 300);
+				else
+					canvasContext.fillText("GAME OVER", 525, 300);
+				canvasContext.font = "20px Verdana";
+				canvasContext.fillText("click to play again", 555, 500);
+				return;
+			}
+			
+			//Paddle
+			colorRect(paddleX, canvas.height - 10 - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, 'white');
+			
+			//Ball
+			colorCircle(ballX, ballY, BALL_RADIUS, 'white');
+			
+			//Bricks
+			for (i = 0; i < NUM_OF_BRICKS; i++) {
+				if (drawBrick[i]) {
+					colorRect(brickX + i*(BRICK_WIDTH + 10), 200, BRICK_WIDTH, BRICK_HEIGHT, 'white');
+					brickCoordinates[i] = [brickX + i*(BRICK_WIDTH + 10), 200];
+				}
+			}
+			
+			
+			canvasContext.font = "25px Verdana";
+			canvasContext.fillText(lives, canvas.width - 50, 50);
+		}
+		
+		function resetGame() {
+			ballReset();
+			initBricks();
+			gameOver = false;
+			lives = 3;
+			bricksLeft = NUM_OF_BRICKS;
+		}
+	
+		function ballReset() {
+			if (lives <= 0)
+				gameOver = true;
+			startingPos = true;
+			ballSpeedX = 0;
+			ballSpeedY = 0;
+			ballX = paddleX + PADDLE_WIDTH/2;
+			ballY = canvas.height - 10 - PADDLE_HEIGHT - BALL_RADIUS;
+		}
+		
+		function initBricks() {
+			for (i = 0; i < NUM_OF_BRICKS; i++) {
+				drawBrick[i] = true;
+			}
+		}
+		
+		function isTouching(i) {
+			return (ballX >= brickCoordinates[i][0] - BALL_RADIUS && ballX <= brickCoordinates[i][0] + BRICK_WIDTH + BALL_RADIUS
+				&& ballY >= brickCoordinates[i][1] - BALL_RADIUS && ballY <= brickCoordinates[i][1] + BRICK_HEIGHT + BALL_RADIUS);
+		}
+		
+		function colorRect(leftX, topY, width, height, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.fillRect(leftX, topY, width, height);
+		}
+		
+		function colorCircle(centerX, centerY, radius, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.beginPath();
+			canvasContext.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+			canvasContext.fill();
+		}
+		
+	</script>
+</html>

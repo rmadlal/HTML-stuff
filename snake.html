@@ -1,0 +1,151 @@
+<html>
+	<head>
+		<title>Snek</title>
+	</head>
+	<body>
+		<h1 style="font-family: Andalus">Snake</h1>
+		<canvas id="gameCanvas" width="300" height="200" style="border:1px solid #303030"></canvas>
+		<h3 style="font-family: serif">Score: <span id="score">0</span></h3>
+	</body>
+	<script>
+		var canvas;
+		var canvasContext;
+		var headX;
+		var headY;
+		var speedX;
+		var speedY;
+		var snakePieces;
+		var foodX;
+		var foodY;
+		var score;
+		var newFood = false;
+		var gameOver = false;
+
+		function initGame() {
+			headX = canvas.width/2;
+			headY = canvas.height/2;
+			speedX = 10;
+			speedY = 0;
+			snakePieces = [[headX-20, headY], [headX-10, headY], [headX, headY]];
+			score = 0;
+			document.getElementById("score").innerHTML = 0;
+			placeFood();
+		}
+
+		function handleMouseClick(evt) {
+			if (gameOver) {
+				initGame();
+				gameOver = false;
+			}
+		}
+
+		window.onkeydown = function(e) {
+   			var key = e.keyCode ? e.keyCode : e.which;
+
+   			if (key == 37 && speedX != 10) {
+				speedX = -10;
+				speedY = 0;
+   			} else if (key == 38 && speedY != 10) {
+       				speedX = 0;
+				speedY = -10;
+   			} else if (key == 39 && speedX != -10) {
+				speedX = 10;
+				speedY = 0;
+ 			} else if (key == 40 && speedY != -10) {
+				speedX = 0;
+				speedY = 10;
+			}
+		}
+		window.onload = function() {
+			canvas = document.getElementById('gameCanvas');
+			canvasContext = canvas.getContext('2d');
+			initGame();
+			var fps = 1000 / 8;
+			setInterval(function() {moveEverything(); drawEverything();}, fps);
+			canvas.addEventListener('mousedown', handleMouseClick);
+		}
+		
+		function moveEverything() {
+			if (gameOver)
+				return;
+			
+			headX += speedX;
+			headY += speedY;
+			
+			//collision with wall
+			if (headX == canvas.width || headX == -10 || headY == canvas.height || headY == -10) {
+				gameOver = true;
+				return;
+			}
+			
+			//eat
+			if (headX == foodX && headY == foodY) {
+				newFood = true;
+				score++;
+				document.getElementById("score").innerHTML = score;
+			}
+
+			//update snek
+			if (!newFood)
+				snakePieces.splice(0, 1);
+			snakePieces[snakePieces.length] = [headX, headY];
+
+			if (newFood) {
+				placeFood();
+				newFood = false;
+			}
+
+			//collision with self
+			for (var i = 0; i < snakePieces.length-1 && !gameOver; i++) {
+				if (headX == snakePieces[i][0] && headY == snakePieces[i][1])
+					gameOver = true;
+			}
+		}
+
+		function drawEverything() {
+			//Game area
+			colorRect(0, 0, canvas.width, canvas.height, 'white');
+			
+			if (gameOver) {
+				canvasContext.font = "40px Courier";
+				canvasContext.fillStyle = 'black';
+				canvasContext.fillText("GAME OVER", (canvas.width / 2) - 110, canvas.height/2);
+				canvasContext.font = "20px Verdana";
+				canvasContext.fillStyle = '#b4b4b4';
+				canvasContext.fillText("click to play again", (canvas.width / 2) - 90, canvas.height - 50);
+				return;
+			}
+
+			drawSnake();
+			drawFood();
+		}
+
+		function placeFood() {
+			var ok = false;
+			while (!ok) {
+				ok = true;
+				foodX = Math.floor(Math.random()*canvas.width/10)*10;
+				foodY = Math.floor(Math.random()*canvas.height/10)*10;
+				for (var i = 0; i < snakePieces.length && ok; i++) {
+					if (foodX == snakePieces[i][0] && foodY == snakePieces[i][1]) 
+						ok = false;
+				}
+			}			
+		}
+		
+		function drawSnake() {
+			for (var i = 0; i < snakePieces.length; i++) {
+				colorRect(snakePieces[i][0], snakePieces[i][1], 10, 10, 'black');
+			}
+		}
+
+		function drawFood() {
+			colorRect(foodX, foodY, 10, 10, '#bbbbbb');
+		}
+		
+		function colorRect(leftX, topY, width, height, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.fillRect(leftX, topY, width, height);
+		}
+	</script>
+</html>

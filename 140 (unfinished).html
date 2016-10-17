@@ -1,0 +1,185 @@
+<html>
+	<head>
+		<title>140</title>
+	</head>
+	<body>
+		<h1 style="position: absolute; left: 380; font-family: Andalus">140</h1>
+		<canvas id="gameCanvas" width="800" height="400" style="border:1px solid #303030; background: turquoise"></canvas>
+	</body>
+	<script>
+		var canvas;
+		var canvasContext;
+		var x;
+		var y;
+		var direction;
+		var horizontalSpeed;
+		var verticalSpeed;
+		var platformX;
+		var platformY;
+		var platformTime;
+		var platformDirection;
+		var platformCoordinates = [];
+		
+		const STOP = 0;
+		const LEFT = 1;
+		const RIGHT = 2;
+		const SQUARE_SIZE = 20;
+		const TRIANGLE_SIZE = 20;
+		const RADIUS = 10;
+		const MAX_SPEED = 5;
+		const JUMP_V0 = -12;
+		const NUM_OF_PLATFORMS = 1;
+		const PLATFORM_SIZE = 40;
+		const PLATFORM_RIGHT= 600;	
+		const PLATFORM_LEFT= 300;
+		
+		window.onkeydown = function(e) {
+   			var key = e.keyCode ? e.keyCode : e.which;
+
+			if (key == 37)
+				direction = LEFT;
+			else if (key == 39)
+				direction = RIGHT;
+			else if ((key == 38 || key == 32) && !(isAirborn()))
+				verticalSpeed = JUMP_V0;
+		}
+
+		window.onkeyup = function(e) {
+   			var key = e.keyCode ? e.keyCode : e.which;
+
+			if ((key == 37 && direction == LEFT) || (key == 39 && direction == RIGHT))
+				direction = STOP;
+		}
+
+		window.onload = function() {
+			canvas = document.getElementById('gameCanvas');
+			canvasContext = canvas.getContext('2d');
+			initGame();
+			var fps = 1000 / 30;
+			setInterval(function() { moveEverything(); drawEverything(); }, fps);
+			
+		}
+
+		function initGame() {
+			//x = (canvas.width - SQUARE_SIZE) / 2;
+			x = canvas.width - 100;
+			y = canvas.height / 2;
+			horizontalSpeed = 0;
+			verticalSpeed = 0;
+			direction = STOP;
+			platformX = (canvas.width -PLATFORM_SIZE) / 2;
+			platformY = canvas.height - 65;
+			platformCoordinates[0] = [(canvas.width -PLATFORM_SIZE) / 2, canvas.height - 65];
+			platformTime = 0;
+			platformDirection = RIGHT;
+		}
+
+		function moveEverything() {
+			x += horizontalSpeed;
+			y = Math.min((y + verticalSpeed), (canvas.height - SQUARE_SIZE));
+			
+			if (direction == STOP)
+				horizontalSpeed = 0;
+			else if (direction == RIGHT && horizontalSpeed < MAX_SPEED) 
+				horizontalSpeed += MAX_SPEED / 2.0;
+			else if (direction == LEFT && horizontalSpeed > -MAX_SPEED) 
+				horizontalSpeed -= MAX_SPEED / 2.0;
+
+			//wall collision
+			if (horizontalSpeed > 0 && x >= canvas.width - SQUARE_SIZE) {
+				horizontalSpeed = 0;
+				x = canvas.width - SQUARE_SIZE;
+			}
+			else if (horizontalSpeed < 0 && x <= 0) {
+				horizontalSpeed = 0;
+				x = 0;
+			}
+			
+			//platform collision
+		
+
+			movePlatform();
+					
+			if (isAirborn())
+				verticalSpeed++;
+			else
+				verticalSpeed = 0;
+		}
+
+		function drawEverything() {
+			//Game area
+			colorRect(0, 0, canvas.width, canvas.height, canvas.style.backgroundColor);
+				
+			//player		
+			if (isAirborn())
+				triangle();
+			else {		
+				if (horizontalSpeed == 0)
+					square();
+				else
+					circle();
+			}
+
+			//platform
+			colorRect(platformX, platformY, PLATFORM_SIZE, PLATFORM_SIZE, 'grey');
+		}
+
+		function isAirborn() {
+			return (y < canvas.height - SQUARE_SIZE);
+		}
+
+		function movePlatform() {
+			if (platformCoordinates[0][0] > PLATFORM_LEFT && platformCoordinates[0][0] < PLATFORM_RIGHT) {
+				if (platformDirection == RIGHT)
+					platformCoordinates[0][0] += 3;
+				else
+					platformCoordinates[0][0] -= 3;
+			}
+			else {
+				if (platformTime < 40)
+					platformTime++;
+				else {
+					platformTime = 0;
+					if (platformCoordinates[0][0] <= PLATFORM_LEFT) {
+						platformDirection = RIGHT;
+						platformCoordinates[0][0] += 3;
+					}
+					else {
+						platformDirection = LEFT;
+						platformCoordinates[0][0] -= 3;
+					}
+				}
+			}
+		}
+
+		function square() { colorRect(x, y, SQUARE_SIZE, SQUARE_SIZE, 'black'); }
+		
+		function circle() { colorCircle(x+RADIUS, y+RADIUS, RADIUS, 'black'); }
+		
+		function triangle() { colorTriangle(x, y + SQUARE_SIZE, TRIANGLE_SIZE, 'black'); }
+
+		function colorRect(leftX, topY, width, height, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.fillRect(leftX, topY, width, height);
+		}
+		
+		function colorCircle(centerX, centerY, radius, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.beginPath();
+			canvasContext.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+			canvasContext.fill();
+		}
+
+		function colorTriangle(bottomLeftX, bottomLeftY, size, drawColor) {
+			canvasContext.fillStyle = drawColor;
+			canvasContext.beginPath();
+			canvasContext.moveTo(bottomLeftX, bottomLeftY);
+			canvasContext.lineTo(bottomLeftX + TRIANGLE_SIZE / 2, 
+					bottomLeftY - Math.sqrt(3)/2*TRIANGLE_SIZE);
+			canvasContext.lineTo(bottomLeftX + TRIANGLE_SIZE, 
+					bottomLeftY);
+			canvasContext.fill();
+		}
+
+	</script>
+</html>
