@@ -3,52 +3,72 @@
 		<title>140</title>
 	</head>
 	<body>
-		<h1 style="position: absolute; left: 380; font-family: Andalus">140</h1>
-		<canvas id="gameCanvas" width="800" height="400" style="border:1px solid #303030; background: turquoise"></canvas>
+		<h1 style="position: absolute; LEFT: 380; font-family: Andalus">140</h1>
+		<canvas id="gameCanvas" width="800" height="500" style="border:1px solid #303030; background: Moccasin"></canvas>
 	</body>
 	<script>
 		var canvas;
 		var canvasContext;
 		var x;
 		var y;
+		var canJump;
+		var triangleRotation;
+		var groundHeight;
 		var direction;
 		var horizontalSpeed;
 		var verticalSpeed;
-		var platformX;
-		var platformY;
 		var platformTime;
-		var platformDirection;
-		var platformCoordinates = [];
+		var platform1Direction;
+		var platformCoords = [];
+		var platformBounds = [];
+		var platformOrientations = [];
+		var platformTimes = [];
+		var onPlatform = [];
+		var touchingPlatform = [];
 		
 		const STOP = 0;
-		const LEFT = 1;
-		const RIGHT = 2;
+		const LEFT_OR_DOWN = 1;
+		const RIGHT_OR_UP = 2;
 		const SQUARE_SIZE = 20;
 		const TRIANGLE_SIZE = 20;
 		const RADIUS = 10;
 		const MAX_SPEED = 5;
 		const JUMP_V0 = -12;
-		const NUM_OF_PLATFORMS = 1;
+		const GROUND_WIDTH = 100;
+		const NUM_OF_PLATFORMS = 2;
 		const PLATFORM_SIZE = 40;
-		const PLATFORM_RIGHT= 600;	
-		const PLATFORM_LEFT= 300;
+		//const PLATFORM1_RIGHT = 600;	
+		//const PLATFORM1_LEFT = 350;
+		//const PLATFORM2_TOP = 80;
+		//const PLATFORM2_BOTTOM = 330;
+		const PLATFORM_SPEED = 5;
+		const PLATFORM_HORIZONTAL = 0;
+		const PLATFORM_VERTICAL = 1;
 		
 		window.onkeydown = function(e) {
    			var key = e.keyCode ? e.keyCode : e.which;
 
-			if (key == 37)
-				direction = LEFT;
-			else if (key == 39)
-				direction = RIGHT;
-			else if ((key == 38 || key == 32) && !(isAirborn()))
+			if ((key == 38 || key == 32) && !(isAirborn()) && canJump){
 				verticalSpeed = JUMP_V0;
+				canJump = false;
+			}
+			if (key == 37) {
+				direction = LEFT_OR_DOWN;
+			}
+			if (key == 39) {
+				direction = RIGHT_OR_UP;
+			}
+			
 		}
 
 		window.onkeyup = function(e) {
    			var key = e.keyCode ? e.keyCode : e.which;
 
-			if ((key == 37 && direction == LEFT) || (key == 39 && direction == RIGHT))
+			if ((key == 37 && direction == LEFT_OR_DOWN) || (key == 39 && direction == RIGHT_OR_UP))
 				direction = STOP;
+			
+			if (key == 38 || key == 32)
+				canJump = true;
 		}
 
 		window.onload = function() {
@@ -64,27 +84,99 @@
 			//x = (canvas.width - SQUARE_SIZE) / 2;
 			x = canvas.width - 100;
 			y = canvas.height / 2;
+			canJump = true;
+			triangleRotation = 30;
+			groundHeight = canvas.height - GROUND_WIDTH;
 			horizontalSpeed = 0;
 			verticalSpeed = 0;
 			direction = STOP;
-			platformX = (canvas.width -PLATFORM_SIZE) / 2;
-			platformY = canvas.height - 65;
-			platformCoordinates[0] = [(canvas.width -PLATFORM_SIZE) / 2, canvas.height - 65];
-			platformTime = 0;
-			platformDirection = RIGHT;
+			platformCoords[0] = [canvas.width / 2, groundHeight - 65];
+			platformCoords[1] = [(canvas.width / 2) - 150, groundHeight - 130];
+			platformBounds[0] = [350, 600];
+			platformBounds[1] = [groundHeight - 330, groundHeight - 80];
+			platformOrientations[0] = PLATFORM_HORIZONTAL;
+			platformOrientations[1] = PLATFORM_VERTICAL;
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				platformTimes[i] = 0;
+				onPlatform[i] = false;
+				touchingPlatform[i] = false;
+			}
+			platform1Direction = RIGHT_OR_UP;
 		}
 
 		function moveEverything() {
-			x += horizontalSpeed;
-			y = Math.min((y + verticalSpeed), (canvas.height - SQUARE_SIZE));
 			
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				movePlatform(i);
+			}
+			
+			var prevX = x;
+			var prevY = y;
+			x += horizontalSpeed;
+			y += verticalSpeed;
+			
+			//platform collision
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				
+				if (prevX > platformCoords[i][0] - SQUARE_SIZE &&
+					prevX < platformCoords[i][0] + PLATFORM_SIZE) {
+					
+					if (prevY <= platformCoords[i][1] - SQUARE_SIZE &&
+						y >= platformCoords[i][1] - SQUARE_SIZE) {
+						
+						y = platformCoords[i][1] - SQUARE_SIZE;
+						verticalSpeed = 0;
+						onPlatform[i] = true;
+						break;
+					
+					}
+					if (prevY >= platformCoords[i][1] + PLATFORM_SIZE - SQUARE_SIZE &&
+						y <= platformCoords[i][1] + PLATFORM_SIZE) {
+						
+						y = platformCoords[i][1] + PLATFORM_SIZE;
+						if (verticalSpeed < 0)
+							verticalSpeed = 0;
+							touchingPlatform[i] = true;
+						break;
+					}
+				}
+				
+				if (y > platformCoords[i][1] - SQUARE_SIZE &&
+					y < platformCoords[i][1] + PLATFORM_SIZE) {
+					
+					if (x >= platformCoords[i][0] + (PLATFORM_SIZE - SQUARE_SIZE) / 2 &&
+						x <= platformCoords[i][0] + PLATFORM_SIZE) {
+						
+						x = platformCoords[i][0] + PLATFORM_SIZE;
+						horizontalSpeed = 0;
+						touchingPlatform[i] = true;
+						break;
+					}
+					if (x >= platformCoords[i][0] - SQUARE_SIZE &&
+						x <= platformCoords[i][0] + (PLATFORM_SIZE - SQUARE_SIZE) / 2) {
+						
+						x = platformCoords[i][0] - SQUARE_SIZE;
+						horizontalSpeed = 0;
+						touchingPlatform[i] = true;
+						break;
+					}
+				}
+				
+				onPlatform[i] = false;
+				touchingPlatform[i] = false;
+			}
+			
+			//acceleration
 			if (direction == STOP)
 				horizontalSpeed = 0;
-			else if (direction == RIGHT && horizontalSpeed < MAX_SPEED) 
+			else if (direction == RIGHT_OR_UP && horizontalSpeed < MAX_SPEED) 
 				horizontalSpeed += MAX_SPEED / 2.0;
-			else if (direction == LEFT && horizontalSpeed > -MAX_SPEED) 
+			else if (direction == LEFT_OR_DOWN && horizontalSpeed > -MAX_SPEED) 
 				horizontalSpeed -= MAX_SPEED / 2.0;
 
+			//floor collision
+			y = Math.min(y, (groundHeight - SQUARE_SIZE));
+				
 			//wall collision
 			if (horizontalSpeed > 0 && x >= canvas.width - SQUARE_SIZE) {
 				horizontalSpeed = 0;
@@ -94,25 +186,38 @@
 				horizontalSpeed = 0;
 				x = 0;
 			}
-			
-			//platform collision
-		
-
-			movePlatform();
-					
+				
 			if (isAirborn())
 				verticalSpeed++;
 			else
 				verticalSpeed = 0;
+				
+			
+					
 		}
 
 		function drawEverything() {
 			//Game area
 			colorRect(0, 0, canvas.width, canvas.height, canvas.style.backgroundColor);
+			
+			//ground
+			colorRect(0, canvas.height - GROUND_WIDTH, canvas.width, GROUND_WIDTH, 'darkblue');
 				
 			//player		
-			if (isAirborn())
+			if (!isAirborn()) {
+				triangleRotation = 30;
+			}
+			if (isTouchingAPlatform())
+				square();
+			else if (isAirborn()) {
+				if (horizontalSpeed > 0) {
+					triangleRotation += 5;
+				}
+				else if (horizontalSpeed < 0) {
+					triangleRotation -= 5;
+				}
 				triangle();
+			}
 			else {		
 				if (horizontalSpeed == 0)
 					square();
@@ -120,33 +225,82 @@
 					circle();
 			}
 
-			//platform
-			colorRect(platformX, platformY, PLATFORM_SIZE, PLATFORM_SIZE, 'grey');
+			//platforms
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				colorRect(platformCoords[i][0], platformCoords[i][1], PLATFORM_SIZE, PLATFORM_SIZE, 'grey');
+			}
 		}
 
 		function isAirborn() {
-			return (y < canvas.height - SQUARE_SIZE);
+			return (!isOnAPlatform() && y < groundHeight - SQUARE_SIZE);
+		}
+		
+		function isOnAPlatform() {
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				if (onPlatform[i])
+					return true;
+			}
+			return false;
+		}
+		
+		function isTouchingAPlatform() {
+			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
+				if (touchingPlatform[i])
+					return true;
+			}
+			return false;
 		}
 
-		function movePlatform() {
-			if (platformCoordinates[0][0] > PLATFORM_LEFT && platformCoordinates[0][0] < PLATFORM_RIGHT) {
-				if (platformDirection == RIGHT)
-					platformCoordinates[0][0] += 3;
-				else
-					platformCoordinates[0][0] -= 3;
+		function movePlatform(i) {
+			var j = platformOrientations[i];
+			var speed = PLATFORM_SPEED;
+			if (j == PLATFORM_VERTICAL)
+				speed = -speed;
+			if (platformCoords[i][j] > platformBounds[i][0] && platformCoords[i][j] < platformBounds[i][1]) {
+				if (platform1Direction == RIGHT_OR_UP) {
+					platformCoords[i][j] += speed;
+					if (onPlatform[i]) {
+						if (j == PLATFORM_HORIZONTAL)
+							x += speed;
+						else
+							y += speed;
+					}
+				}
+				else {
+					platformCoords[i][j] -= speed;
+					if (onPlatform[i]) {
+						if (j == PLATFORM_HORIZONTAL)
+							x -= speed;
+						else
+							y -= speed;
+					}
+				}
 			}
 			else {
-				if (platformTime < 40)
-					platformTime++;
+				if (platformTimes[i] < 50)
+					platformTimes[i]++;
 				else {
-					platformTime = 0;
-					if (platformCoordinates[0][0] <= PLATFORM_LEFT) {
-						platformDirection = RIGHT;
-						platformCoordinates[0][0] += 3;
+					platformTimes[i] = 0;
+					if (platformCoords[i][j] == platformBounds[i][1-j]) {
+						platform1Direction = LEFT_OR_DOWN;
+						platformCoords[i][j] -= speed;
+						if (onPlatform[i]) {
+							if (j == PLATFORM_HORIZONTAL)
+								x -= speed;
+							else
+								y -= speed;
+						}
+						
 					}
 					else {
-						platformDirection = LEFT;
-						platformCoordinates[0][0] -= 3;
+						platform1Direction = RIGHT_OR_UP;
+						platformCoords[i][j] += speed;
+						if (onPlatform[i]) {
+							if (j == PLATFORM_HORIZONTAL)
+								x += speed;
+							else
+								y += speed;
+						}
 					}
 				}
 			}
@@ -154,30 +308,38 @@
 
 		function square() { colorRect(x, y, SQUARE_SIZE, SQUARE_SIZE, 'black'); }
 		
-		function circle() { colorCircle(x+RADIUS, y+RADIUS, RADIUS, 'black'); }
+		function circle() { colorCircle('black'); }
 		
-		function triangle() { colorTriangle(x, y + SQUARE_SIZE, TRIANGLE_SIZE, 'black'); }
+		function triangle() { colorTriangle('black'); }
 
-		function colorRect(leftX, topY, width, height, drawColor) {
+		function colorRect(LeftX, topY, width, height, drawColor) {
 			canvasContext.fillStyle = drawColor;
-			canvasContext.fillRect(leftX, topY, width, height);
+			canvasContext.fillRect(LeftX, topY, width, height);
 		}
 		
-		function colorCircle(centerX, centerY, radius, drawColor) {
+		function colorCircle(drawColor) {
+			var centerX = x + RADIUS;
+			var centerY = y + RADIUS;
 			canvasContext.fillStyle = drawColor;
 			canvasContext.beginPath();
-			canvasContext.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+			canvasContext.arc(centerX, centerY, RADIUS, 0, Math.PI*2, true);
 			canvasContext.fill();
 		}
 
-		function colorTriangle(bottomLeftX, bottomLeftY, size, drawColor) {
+		function colorTriangle(drawColor) {
+			var centerX = (2.0 * x + TRIANGLE_SIZE) / 2;
+			var centerY = y + TRIANGLE_SIZE * 2.0 / 3;
+			var radians = triangleRotation * Math.PI / 180;
+			var radius = TRIANGLE_SIZE / Math.sqrt(3);
+			var angle1 = radians % (2*Math.PI);
+			var angle2 = (angle1 + 1.0/3 * 2 * Math.PI) % (2 * Math.PI);
+			var angle3 = (angle2 + 1.0/3 * 2 * Math.PI) % (2 * Math.PI);
+			
 			canvasContext.fillStyle = drawColor;
 			canvasContext.beginPath();
-			canvasContext.moveTo(bottomLeftX, bottomLeftY);
-			canvasContext.lineTo(bottomLeftX + TRIANGLE_SIZE / 2, 
-					bottomLeftY - Math.sqrt(3)/2*TRIANGLE_SIZE);
-			canvasContext.lineTo(bottomLeftX + TRIANGLE_SIZE, 
-					bottomLeftY);
+			canvasContext.moveTo(radius * Math.cos(angle1) + centerX, radius * Math.sin(angle1) + centerY);
+			canvasContext.lineTo(radius * Math.cos(angle2) + centerX, radius * Math.sin(angle2) + centerY);
+			canvasContext.lineTo(radius * Math.cos(angle3) + centerX, radius * Math.sin(angle3) + centerY);
 			canvasContext.fill();
 		}
 
