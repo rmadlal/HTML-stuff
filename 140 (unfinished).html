@@ -24,7 +24,8 @@
 		var platformOrientations = [];
 		var platformTimes = [];
 		var onPlatform = [];
-		var touchingPlatform = [];
+		var touchingPlatform;
+		var blockY;
 		
 		const STOP = 0;
 		const LEFT_OR_DOWN = 1;
@@ -44,6 +45,8 @@
 		const PLATFORM_SPEED = 5;
 		const PLATFORM_HORIZONTAL = 0;
 		const PLATFORM_VERTICAL = 1;
+		const BLOCK_X = 600;
+		const BLOCK_SIZE = 50;
 		
 		window.onkeydown = function(e) {
    			var key = e.keyCode ? e.keyCode : e.which;
@@ -51,8 +54,10 @@
 			if (key == 38 || key == 32){
 				if (isAirborn())
 					canJump = false;
-				else if (canJump)
+				else if (canJump) {
 					verticalSpeed = JUMP_V0;
+					canJump = false;
+				}
 			}
 			if (key == 37) {
 				direction = LEFT_OR_DOWN;
@@ -100,9 +105,10 @@
 			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
 				platformTimes[i] = 0;
 				onPlatform[i] = false;
-				touchingPlatform[i] = false;
 			}
+			touchingPlatform = false;
 			platform1Direction = RIGHT_OR_UP;
+			blockY = groundHeight - 50;
 		}
 
 		function moveEverything() {
@@ -137,7 +143,7 @@
 						y = platformCoords[i][1] + PLATFORM_SIZE;
 						if (verticalSpeed < 0)
 							verticalSpeed = 0;
-							touchingPlatform[i] = true;
+							touchingPlatform = true;
 						break;
 					}
 				}
@@ -150,7 +156,7 @@
 						
 						x = platformCoords[i][0] + PLATFORM_SIZE;
 						horizontalSpeed = 0;
-						touchingPlatform[i] = true;
+						touchingPlatform = true;
 						break;
 					}
 					if (x >= platformCoords[i][0] - SQUARE_SIZE &&
@@ -158,25 +164,38 @@
 						
 						x = platformCoords[i][0] - SQUARE_SIZE;
 						horizontalSpeed = 0;
-						touchingPlatform[i] = true;
+						touchingPlatform = true;
 						break;
 					}
 				}
 				
 				onPlatform[i] = false;
-				touchingPlatform[i] = false;
+				touchingPlatform = false;
 			}
 			
-			//acceleration
-			if (direction == STOP)
-				horizontalSpeed = 0;
-			else if (direction == RIGHT_OR_UP && horizontalSpeed < MAX_SPEED) 
-				horizontalSpeed += MAX_SPEED / 2.0;
-			else if (direction == LEFT_OR_DOWN && horizontalSpeed > -MAX_SPEED) 
-				horizontalSpeed -= MAX_SPEED / 2.0;
-
 			//floor collision
 			y = Math.min(y, (groundHeight - SQUARE_SIZE));
+			
+			//block collision
+			onPlatform[2] = false;
+			if (x > BLOCK_X - SQUARE_SIZE && x < BLOCK_X + BLOCK_SIZE) {
+				if (prevY < blockY - SQUARE_SIZE && y >= blockY - SQUARE_SIZE) {
+					y = blockY - SQUARE_SIZE;
+					onPlatform[2] = true;
+				} else if (y > blockY - SQUARE_SIZE) {
+					if (prevX <= BLOCK_X - SQUARE_SIZE && x >= BLOCK_X - SQUARE_SIZE)
+						x = BLOCK_X - SQUARE_SIZE;
+					else if (prevX >= BLOCK_X + BLOCK_SIZE && x <= BLOCK_X + BLOCK_SIZE)
+						x = BLOCK_X + BLOCK_SIZE;
+					touchingPlatform = true;
+					horizontalSpeed = 0;
+				}
+			}
+			
+			if (y > blockY - SQUARE_SIZE && 
+				(x == BLOCK_X + BLOCK_SIZE || x == BLOCK_X - SQUARE_SIZE))
+				
+				touchingPlatform = true;
 				
 			//wall collision
 			if (horizontalSpeed > 0 && x >= canvas.width - SQUARE_SIZE) {
@@ -187,13 +206,19 @@
 				horizontalSpeed = 0;
 				x = 0;
 			}
+			
+			//acceleration
+			if (direction == STOP)
+				horizontalSpeed = 0;
+			else if (direction == RIGHT_OR_UP && horizontalSpeed < MAX_SPEED) 
+				horizontalSpeed += MAX_SPEED / 2.0;
+			else if (direction == LEFT_OR_DOWN && horizontalSpeed > -MAX_SPEED) 
+				horizontalSpeed -= MAX_SPEED / 2.0;
 				
 			if (isAirborn())
 				verticalSpeed++;
-			else
+			else if (verticalSpeed > 0)
 				verticalSpeed = 0;
-				
-			
 					
 		}
 
@@ -202,13 +227,16 @@
 			colorRect(0, 0, canvas.width, canvas.height, canvas.style.backgroundColor);
 			
 			//ground
-			colorRect(0, canvas.height - GROUND_WIDTH, canvas.width, GROUND_WIDTH, 'darkblue');
+			colorRect(0, groundHeight, canvas.width, GROUND_WIDTH, 'darkblue');
 				
+			//solid block
+			colorRect(BLOCK_X, blockY, BLOCK_SIZE, BLOCK_SIZE, 'darkblue');
+			
 			//player		
 			if (!isAirborn()) {
 				triangleRotation = 30;
 			}
-			if (isTouchingAPlatform())
+			if (touchingPlatform)
 				square();
 			else if (isAirborn()) {
 				if (horizontalSpeed > 0) {
@@ -218,8 +246,7 @@
 					triangleRotation -= 5;
 				}
 				triangle();
-			}
-			else {		
+			} else {		
 				if (horizontalSpeed == 0)
 					square();
 				else
@@ -241,15 +268,8 @@
 				if (onPlatform[i])
 					return true;
 			}
-			return false;
-		}
-		
-		function isTouchingAPlatform() {
-			for (var i = 0; i < NUM_OF_PLATFORMS; i++) {
-				if (touchingPlatform[i])
-					return true;
-			}
-			return false;
+			return (x > BLOCK_X - SQUARE_SIZE && x < BLOCK_X + BLOCK_SIZE &&
+				y == blockY - SQUARE_SIZE);
 		}
 
 		function movePlatform(i) {
