@@ -48,9 +48,11 @@
 		window.onkeydown = function(e) {
    			var key = e.keyCode ? e.keyCode : e.which;
 
-			if ((key == 38 || key == 32) && !(isAirborn()) && canJump){
-				verticalSpeed = JUMP_V0;
-				canJump = false;
+			if (key == 38 || key == 32){
+				if (isAirborn())
+					canJump = false;
+				else if (canJump)
+					verticalSpeed = JUMP_V0;
 			}
 			if (key == 37) {
 				direction = LEFT_OR_DOWN;
@@ -58,7 +60,6 @@
 			if (key == 39) {
 				direction = RIGHT_OR_UP;
 			}
-			
 		}
 
 		window.onkeyup = function(e) {
